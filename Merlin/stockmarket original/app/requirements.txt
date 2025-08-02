@@ -1,0 +1,4 @@
+mysql-connector-python
+SQLAlchemy
+
+sudo apt-get install python3-pymysql

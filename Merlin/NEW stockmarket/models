@@ -1,0 +1,48 @@
+from sqlalchemy import Column, DateTime, BigInteger, Float, Integer, String, Boolean
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+# Initialize the SQLAlchemy engine and session
+engine = create_engine('mysql+pymysql://root:laraiders@localhost:3306/stockmarket', echo=False)
+db_session = scoped_session(sessionmaker(autocommit=False,
+                                         autoflush=False,
+                                         bind=engine))
+
+def init_db():
+    Model.metadata.create_all(bind=engine)
+
+Model = declarative_base(name='Model')
+Model.query = db_session.query_property()
+
+# Define the Stock model
+class Stock(Model):
+    __tablename__ = 'stock'
+
+    id = Column(BigInteger, primary_key=True)
+    symbol = Column(String(10), unique=True, nullable=False)
+    name = Column(String(512), nullable=False)
+    enabled = Column(Boolean, default=True, nullable=False)
+    advfn_url = Column(String(512), nullable=True)
+    sector = Column(String(512), default='', nullable=True)
+    shares_in_issue = Column(BigInteger, default=0, nullable=True)
+
+    def __repr__(self):
+        return f'<Stock {self.name}>'
+
+# Define the StockDaily model
+class StockDaily(Model):
+    __tablename__ = 'stock_daily'
+
+    id = Column(BigInteger, primary_key=True)
+    stock_id = Column(BigInteger, nullable=False)
+    symbol = Column(String(10), nullable=False)
+    price_date = Column(DateTime, nullable=False)
+    open_price = Column(Float, default=0.0, nullable=True)
+    close_price = Column(Float, default=0.0, nullable=True)
+    high_price = Column(Float, default=0.0, nullable=True)
+    low_price = Column(Float, default=0.0, nullable=True)
+    volume = Column(Float, default=0.0, nullable=True)
+
+    def __repr__(self):
+        return f'<StockDaily {self.symbol} {self.price_date}>'
