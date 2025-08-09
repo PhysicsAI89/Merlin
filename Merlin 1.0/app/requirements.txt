@@ -1,0 +1,8 @@
+Flask
+SQLAlchemy
+mysql-connector-python  # or PyMySQL, whichever your app uses
+pandas
+numpy
+scikit-learn
+joblib
+
