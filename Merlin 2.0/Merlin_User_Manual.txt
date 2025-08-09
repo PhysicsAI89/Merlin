@@ -1,0 +1,166 @@
+Merlin — Multi‑Asset ML (Daily/Weekly)
+User Manual
+========================================
+Updated: 2025‑08‑09
+
+This guide explains how to run the Merlin app, fetch data, train models, backtest a simple strategy, and make/saving predictions.
+
+
+0) Quick start
+--------------
+1. Open Windows PowerShell and cd to your app folder, e.g.
+   cd "C:\Users\harry\OneDrive\Documents\Merlin\Merlin 2.0\app"
+
+2. (Optional but recommended) Speed knobs for this session:
+   $env:MERLIN_TS_SPLITS = "3"     # faster CV during training
+   $env:MERLIN_N_JOBS    = "-1"    # use all CPU cores where relevant
+   # GPU for XGBoost (if installed + NVIDIA):
+   $env:MERLIN_USE_GPU   = "1"
+
+3. Start the UI:
+   streamlit run .\ui_app.py
+
+4. The browser will open to http://localhost:8501.
+
+
+1) Overview of the UI
+---------------------
+• Asset: choose a symbol stored in your DB (e.g., BTC‑USD, ETH‑USD, GBPUSD=X, CL=F, VOD).
+• Frequency: D = daily, W = weekly resampled (Fri close).
+• Horizon (steps ahead): how far ahead to predict (1 = next bar; 3 = 3 bars ahead).
+• Model: gb (Gradient Boosting), rf (Random Forest), xgb (XGBoost).
+  - gb: fastest CPU baseline (single core; very snappy for small data).
+  - rf: multi‑core CPU (set MERLIN_N_JOBS=-1) — good robustness.
+  - xgb: best accuracy on tabular in many cases; can use GPU when MERLIN_USE_GPU=1.
+• Use news sentiment: optionally add Alpha Vantage news features (equities recommended).
+
+
+2) Getting data into the database
+---------------------------------
+There are two ways:
+
+A) Buttons in the UI
+   • Fetch latest equity data (AV): uses Alpha Vantage for *equities only* (needs API key).
+   • Fetch latest (YF) for this asset: uses yfinance (works for crypto/FX/futures/equities).
+   • Fetch ALL enabled (YF): yfinance for every enabled symbol in the Stock table.
+
+B) CLI (bulk load, optional)
+   python -m flask --app app ingest yf --symbols "BTC-USD,ETH-USD,GBPUSD=X,CL=F" --period 5y --interval 1d
+
+Note: If AV returns “No data”, the symbol may not be an equity or you’re rate‑limited.
+For crypto/FX/oil, prefer the YF buttons.
+
+
+3) Training a model
+-------------------
+Click **Train** after choosing Asset / Frequency / Horizon / Model / (News).
+
+Under the hood:
+• Features: returns, moving‑average ratios, MACD, RSI, Bollinger width, volume z‑score,
+  and optional news aggregates (if enabled).
+• Target: direction_horizon = 1 if (close_{t+h} > close_t) else 0.
+• TimeSeriesSplit CV uses MERLIN_TS_SPLITS (default 3). Fewer splits = faster.
+• The UI will show: “Trained <SYMBOL> — <MODEL>_<FREQ>_H<h> ROC AUC: <score> (<samples>)”.
+
+Speed tips:
+• gb is the quickest baseline.
+• rf uses all CPU cores (MERLIN_N_JOBS=-1).
+• xgb can use GPU when MERLIN_USE_GPU=1 and a CUDA‑capable build of XGBoost is installed.
+
+
+4) Predicting the next bar(s)
+-----------------------------
+• Tick **Save prediction** if you also want to persist to the database table `stock_prediction`.
+• Click **Predict next** to compute the probability the asset closes UP at t + horizon.
+
+The UI shows:  Pr(up) = 0.xxx
+Example: 0.496 = 49.6% chance the close at the forecast horizon is higher than “now”.
+With a buy threshold of 0.60 that would *not* trigger a buy.
+
+
+5) Backtesting the simple strategy
+----------------------------------
+Click **Backtest strategy**. Tune three controls:
+
+• Buy threshold (prob): only “buy” when model probability ≥ this number.
+  Lower = more trades, noisier. Higher = fewer trades, higher quality signals.
+
+• Hold steps: number of bars to hold after entry (in steps of D/W).
+
+• Retrain every k steps: model is re‑fit only every k bars during the walk‑forward loop.
+  Smaller = more accurate, larger = faster. Try k = 5 for quick tests, k = 1 for thorough.
+
+Output:
+• Trades: count of signals taken (prob ≥ threshold).
+• Hit rate: share of profitable trades.
+• Final equity: cumulative product of (1 + rtn) over all trades (start at 1.00x).
+
+Interpretation example:
+• Trades: 4 | Hit rate: 0.50 | Final equity: 1.04x
+  Means: 4 trades, 2 winners, 2 losers, you ended at +4% overall given those parameters.
+
+Tip: If you see very few trades, reduce the threshold, use Daily instead of Weekly, or extend the data period.
+
+
+6) News sentiment (optional)
+----------------------------
+• Requires Alpha Vantage key (set in the sidebar).
+• Best for equities (AAPL, MSFT…). Crypto/FX often have weak coverage and rate limits.
+• When ON, two rolling features are added (3‑day mean sentiment & 3‑day news count).
+
+
+7) Performance & GPU notes
+--------------------------
+• gb is fastest to iterate; good for prototyping.
+• rf scales across CPU cores (MERLIN_N_JOBS=-1).
+• xgb can run on GPU when MERLIN_USE_GPU=1 (and a CUDA XGBoost is installed).
+  - To sanity‑check GPU, run a tiny XGBoost script and confirm device="cuda" works.
+• Backtests can be slow if you refit every bar. Use “Retrain every k steps” (e.g., 5 or 10).
+
+
+8) Troubleshooting
+------------------
+No data returned (AV):
+  • The symbol might not be an equity, or you are rate‑limited. Use the YF buttons instead.
+
+Predictions don’t save:
+  • Ensure “Save prediction” is ticked and your DB path (app/models/stockmarket.sqlite) is writable.
+
+xgboost missing:
+  • Install xgboost for your Python. If GPU support is wanted, you need an NVIDIA‑compatible build.
+
+GPU not used:
+  • Set $env:MERLIN_USE_GPU="1", restart PowerShell, and ensure XGBoost is a CUDA build.
+  • In Task Manager, usage appears in the “Compute_0” or similar engine column.
+
+
+9) Symbol reference (Yahoo Finance)
+-----------------------------------
+BTC-USD  : Bitcoin vs USD (crypto)
+ETH-USD  : Ethereum vs USD (crypto)
+GBPUSD=X : GBP vs USD (forex spot; “=X” means FX on Yahoo)
+CL=F     : WTI Crude futures continuous (front contract; “=F” means futures)
+VOD      : Vodafone (US ADR). London listing is usually VOD.L
+
+
+10) Glossary
+------------
+• ROC AUC      : Probability the model ranks positives above negatives (1.0 best, 0.5 random).
+• Pr(up)       : Predicted probability the close at horizon will be higher than now.
+• Threshold    : The minimum probability required to open a trade in the backtest.
+• Hit rate     : % of trades with positive realised return.
+• Final equity : Product of (1 + trade_return) across all trades, starting at 1.00.
+
+
+Appendix: Handy commands
+------------------------
+# Set speed knobs for the current PowerShell session
+$env:MERLIN_TS_SPLITS = "3"
+$env:MERLIN_N_JOBS    = "-1"
+$env:MERLIN_USE_GPU   = "1"     # if you want XGBoost on GPU
+
+# Start the UI (run from the app folder)
+streamlit run .\ui_app.py
+
+# Bulk ingest with yfinance (optional, from app folder)
+python -m flask --app app ingest yf --symbols "BTC-USD,ETH-USD,GBPUSD=X,CL=F" --period 5y --interval 1d
