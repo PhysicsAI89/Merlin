@@ -1,0 +1,11 @@
+
+pandas
+numpy
+scikit-learn
+joblib
+SQLAlchemy
+pymysql
+streamlit
+yfinance
+requests
+xgboost
