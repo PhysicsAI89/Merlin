@@ -1,0 +1,92 @@
+Merlin 3.1 — Upgrade Patch
+
+Merlin Own ML now in use
+
+# Write the README content to a markdown file for download
+content = """# UPDATES - SEB UPDATE
+
+## Overview
+This patch adds a walk-forward “simulate live” mode, an auto-suggestion system for self-improvement, and a forum-buzz signal (Reddit + Stocktwits) that feeds a simple trade-decision engine in the UI.
+
+## What’s new
+- **Walk-forward simulation (paper trading):**
+  - Feeds historical bars one-by-one, predicts the next bar, then compares with the actual.
+  - Optionally **retrains every _k_ steps**.
+  - Logs metrics and produces **human-readable suggestions** to improve the model.
+- **Self-improvement suggestions:**
+  - Stored in DB and shown in a **“Self-improvement suggestions”** box in the UI.
+  - Examples: raise/lower buy threshold, retrain more often, add features (sentiment/volume rule).
+- **Forum Buzz signal:**
+  - Lightweight counts from **Reddit** and **Stocktwits**, stored daily.
+  - Computes a **baseline (30-day avg)** and today’s **buzz factor** (today ÷ baseline).
+- **Decision engine:**
+  - Blends **Pr(up)**, **volume spike** (vs 20-day avg), and **buzz factor** to output:
+    - **Buy / Wait / Sell** + **confidence** and a **target sell date** (hold-N steps).
+  - UI prints a one-liner like:  
+    *“AAPL was mentioned 142 times today (3.1× baseline); volume 2.7× 20-day; Pr(up)=0.68 → **BUY**; sell on 2025-08-19.”*
+
+## Files changed
+**Replace:**
+- `Merlin 3.0/app/models/stockmarket.py` — adds a new table for daily buzz counts.
+- `Merlin 3.0/app/commands/ml.py` — adds walk-forward simulate, suggestions, decision engine, and CLI.
+- `Merlin 3.0/app/ui_app.py` — new UI sections for Buzz/Decision, Simulation, and Suggestions.
+
+**Add:**
+- `Merlin 3.0/app/commands/buzz.py` — fetches Reddit/Stocktwits counts and computes baselines.
+
+## DB schema (new tables)
+- `stock_buzz_daily` — per-day **mention_count** per **source** (reddit/stocktwits).
+- `model_suggestion` — timestamped text suggestions with optional metric/value.
+- (Kept as is) `stock_prediction` — predictions table used by the app.
+- (Optional in code) `trade_decision` — structure included for future expansion.
+
+> Run once to (create/upgrade) tables:
+```bash
+python -c "from models.stockmarket import init_db; init_db(); print('DB ready')"
+
+
+UI changes
+Buzz monitor & trade decision:
+Click “Fetch buzz now” → UI shows today’s mentions, buzz factor, volume factor, Pr(up), and a recommended action with sell date.
+
+Walk-forward simulation:
+Choose Buy threshold / Hold steps / Retrain every k → click “Run walk-forward simulation” to generate metrics and auto-suggestions.
+
+Suggestions box:
+Latest suggestions appear in “Self-improvement suggestions (latest)”.
+
+CLI additions
+Train (unchanged):
+
+bash
+Always show details
+
+Copy
+flask ml train --symbol VOD
+Simulate (new):
+
+bash
+Always show details
+
+Copy
+flask ml simulate --symbol VOD --buy-threshold 0.65 --hold-steps 5 --retrain-every 10
+Install & run
+bash
+Always show details
+
+Copy
+pip install requests
+python -c "from models.stockmarket import init_db; init_db()"
+streamlit run app/ui_app.py
+Notes & limits
+Buzz endpoints are public and rate-limited; counts are approximate but useful as a relative spike signal.
+
+Decision thresholds are tunable in the UI (default: Pr(up) ≥ 0.60; volume/buzz ≥ 2×).
+
+News sentiment features can be added later and folded into the same decision layer.
+"""
+path = "/mnt/data/UPDATES - SEB UPDATE.md"
+with open(path, "w", encoding="utf-8") as f:
+f.write(content)
+
+path
