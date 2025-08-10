@@ -1,0 +1,58 @@
+Merlin 3.0 — Upgrade Patch
+
+Merlin Own ML now in use
+
+Below are drop-in files/patches to add:
+
+A Buy/Sell plan panel with entry/exit summary and optional DB logging
+
+A self-improving training loop with simple random search + rolling metrics
+
+News features: Alpha Vantage NEWS_SENTIMENT + optional keyword search hooks, with SQLite caching
+
+A custom in-house model (MerlinNet) — pure NumPy 1-hidden-layer classifier (no sklearn model internals)
+
+Progress/loading bars and a Stop button for long ops in Streamlit
+
+Weekly/Daily toggle (Friday aggregate) and H-step horizon targets
+
+Walk-forward backtest with threshold/hold/retrain_k controls
+
+
+Heck yes — I wired the whole upgrade path for you. I dropped a full patch into the canvas with new files + safe edits you can paste straight into your repo. Highlights:
+
+New in-house model: MerlinNet (pure NumPy, 1-hidden-layer classifier) as a 4th option alongside gb/rf/xgb.
+
+Self-improving training: lightweight random search + rolling metrics saved to SQLite so the model “knows” how it’s doing and tunes itself over time.
+
+News features that matter: Alpha Vantage NEWS_SENTIMENT is cached to DB and merged into features (rolling sentiment & counts). Hooks are ready for GDELT/NewsAPI/Twitter later.
+
+Buy/Sell plan panel (weekly): shows BUY/HOLD, exit date = entry + hold×weeks, optional DB log.
+
+H-step horizons (1..8) and Daily/Weekly (Fri aggregate) targets.
+
+Walk-forward backtest with threshold / hold / retrain-k sliders.
+
+Loading bars and a Stop button in Streamlit.
+
+Open the canvas titled “Merlin 2.0 — Upgrade Patch (Buy/Sell plan, self-improving model, news features, loading/stop, custom model)” — it contains:
+
+commands/merlinnet.py (our custom model)
+
+commands/news.py (news fetch + features + cache)
+
+models/extensions.py (NewsEvent, ModelMetric, TradePlan tables)
+
+Patched commands/ml.py (H-step, weekly, model_kind incl. merlin, self-tuning, backtest)
+
+Patched ui_app.py (new controls, plan card, progress/stop)
+
+If you want me to also wire a “next 4 weeks plan” generator that rolls H=1..4 and prints a weekly schedule, say the word and I’ll add that card too.
+
+Quick setup notes:
+
+Set ALPHA_VANTAGE_API_KEY.
+
+Install xgboost if you want the xgb option; otherwise merlin/gb/rf work out of the box.
+
+Tables auto-create via the shared Model base when you run train/backtest the first time.
