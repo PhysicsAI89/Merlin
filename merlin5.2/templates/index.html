@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merlin 5.2</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="logo-section">
+                <div class="logo-icon">&#9670;</div>
+                <h1>Merlin <span class="version">5.2</span></h1>
+            </div>
+            <p class="tagline">stock prediction engine</p>
+        </header>
+
+        <section class="ticker-section">
+            <div class="input-group">
+                <label for="ticker-input">enter ticker symbol</label>
+                <div class="input-row">
+                    <input type="text" id="ticker-input" placeholder="e.g. AAPL, V, MSFT, TSLA" autocomplete="off" spellcheck="false">
+                    <button id="fetch-btn" onclick="fetchData()">
+                        <span class="btn-text">fetch data</span>
+                        <span class="btn-loader hidden"></span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <div id="status-bar" class="status-bar hidden">
+            <span id="status-text"></span>
+        </div>
+
+        <section id="stock-info" class="stock-info hidden">
+            <div class="info-grid">
+                <div class="info-card primary">
+                    <span class="info-label">ticker</span>
+                    <span id="info-ticker" class="info-value big"></span>
+                </div>
+                <div class="info-card">
+                    <span class="info-label">current price</span>
+                    <span id="info-price" class="info-value"></span>
+                </div>
+                <div class="info-card">
+                    <span class="info-label">change</span>
+                    <span id="info-change" class="info-value"></span>
+                </div>
+                <div class="info-card">
+                    <span class="info-label">data points</span>
+                    <span id="info-points" class="info-value"></span>
+                </div>
+            </div>
+        </section>
+
+        <section id="news-section" class="news-section hidden">
+            <div class="section-header">
+                <h2>news sentiment</h2>
+                <span id="news-badge" class="news-badge"></span>
+            </div>
+            <div id="news-list" class="news-list"></div>
+        </section>
+
+        <section id="chart-section" class="chart-section hidden">
+            <div class="chart-header">
+                <h2>price history</h2>
+                <div class="chart-controls">
+                    <button class="chart-range-btn active" data-range="3m">3M</button>
+                    <button class="chart-range-btn" data-range="6m">6M</button>
+                    <button class="chart-range-btn" data-range="1y">1Y</button>
+                    <button class="chart-range-btn" data-range="all">All</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="price-chart"></canvas>
+            </div>
+        </section>
+
+        <section id="train-section" class="train-section hidden">
+            <div class="section-header">
+                <h2>model training</h2>
+            </div>
+            <div class="train-controls">
+                <div class="epoch-selector">
+                    <label for="epochs-input">epochs</label>
+                    <input type="number" id="epochs-input" value="50" min="5" max="200" step="5">
+                </div>
+                <button id="train-btn" onclick="trainModel()">
+                    <span class="btn-text">train model</span>
+                    <span class="btn-loader hidden"></span>
+                </button>
+            </div>
+            <div id="training-progress" class="training-progress hidden">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <span id="progress-text" class="progress-text">0%</span>
+                <span id="progress-message" class="progress-message"></span>
+            </div>
+        </section>
+
+        <section id="backtest-section" class="backtest-section hidden">
+            <div class="section-header">
+                <h2>backtest results</h2>
+                <span id="backtest-confidence" class="confidence-badge"></span>
+            </div>
+            <div class="backtest-stats">
+                <div class="stat-item">
+                    <span class="stat-label">direction accuracy</span>
+                    <span id="bt-direction" class="stat-value"></span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">avg error (MAE)</span>
+                    <span id="bt-mae" class="stat-value"></span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">error % (MAPE)</span>
+                    <span id="bt-mape" class="stat-value"></span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">RMSE</span>
+                    <span id="bt-rmse" class="stat-value"></span>
+                </div>
+            </div>
+            <div class="backtest-chart-container">
+                <canvas id="backtest-chart"></canvas>
+            </div>
+        </section>
+
+        <section id="predict-section" class="predict-section hidden">
+            <div class="section-header">
+                <h2>predictions</h2>
+            </div>
+            <div class="timeframe-grid">
+                <button class="timeframe-btn" onclick="runPrediction('1d', this)">1 Day</button>
+                <button class="timeframe-btn" onclick="runPrediction('1w', this)">1 Week</button>
+                <button class="timeframe-btn" onclick="runPrediction('1m', this)">1 Month</button>
+                <button class="timeframe-btn" onclick="runPrediction('3m', this)">3 Months</button>
+                <button class="timeframe-btn" onclick="runPrediction('6m', this)">6 Months</button>
+                <button class="timeframe-btn" onclick="runPrediction('1y', this)">1 Year</button>
+            </div>
+            <div id="prediction-results" class="prediction-results hidden">
+                <div class="prediction-chart-container">
+                    <canvas id="prediction-chart"></canvas>
+                </div>
+                <div id="analysis-card" class="analysis-card"></div>
+            </div>
+        </section>
+
+        <section id="trades-section" class="trades-section">
+            <div class="section-header">
+                <h2>saved trade recommendations</h2>
+                <button class="clear-btn" onclick="clearTrades()">clear all</button>
+            </div>
+            <div class="trades-table-container">
+                <p class="no-trades" id="no-trades-msg">no trades saved yet. run a prediction and save a recommendation.</p>
+                <table id="trades-table" class="trades-table hidden">
+                    <thead>
+                        <tr>
+                            <th>ticker</th>
+                            <th>action</th>
+                            <th>buy date</th>
+                            <th>buy price</th>
+                            <th>sell date</th>
+                            <th>sell price</th>
+                            <th>potential gain</th>
+                            <th>saved at</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer class="app-footer">
+            <p>merlin 5.2 &middot; lstm stock prediction engine</p>
+            <p class="disclaimer">this is not financial advice. predictions are based on historical patterns and may not reflect future performance.</p>
+        </footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
