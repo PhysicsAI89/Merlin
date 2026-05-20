@@ -1,0 +1,10 @@
+flask
+yfinance
+pandas
+numpy
+scikit-learn
+keras
+tensorflow
+requests
+beautifulsoup4
+lxml
